@@ -103,7 +103,59 @@ A real example:
       *(When I found a way to show it)* The resource tree **shows** that `Muse/UiComponents` does **exist**, **but it's inside a folder** called `/qml`. But the QML Engine was expecting to find it inside `:/` (PREFIX PATH) + `Muse/UiComponents`, so when it goes there it finds nothing.
 
       But **if we import the module like `import qml.Muse.UiComponents`**, it **does work!** That's because when it goes inside `:/qml/Muse/UiComponents` it **finds a qmldir** file.
-- *Propose a solution.
+- *Propose a solution.* / *How can we fix it?*
+ In theory, **in the module declaratin,** we are declaring a **variable** called `MODULE_QML_IMPORT` to **indicate** the QML Engine that it needs to look for modules from the directory `qml/`. But this **isn't working now.**
+
+If we go to the script that's making work this module system, and search using the **Global Search & Replace tool** the word `MODULE_QML_IMPORT` to **analyze** how this variable is being used, we see the following:
+
+```
+add_qml_import_path(MODULE_QML_IMPORT)
+```
+
+But, what does `add_qml_import_path` really mean? We search it in the Qt Documentation.
+
+We didn't find anything. Maybe it's a *macro* defined by the *project*, to save time? We look for it with the Global Search and Replace tool. Uep! We find it in the same file. This is the definition:
+
+```
+macro(add_qml_import_path input_var)
+  if (NOT ${${input_var}} STREQUAL "")
+      set(QML_IMPORT_PATH "$CACHE{QML_IMPORT_PATH}")
+      list(APPEND QML_IMPORT_PATH ${${input_var}})
+      list(REMOVE_DUPLICATES QML_IMPORT_PATH)
+      set(QML_IMPORT_PATH "${QML_IMPORT_PATH}" CACHE STRING
+          "QtCreator extra import paths for QML modules" FORCE)
+  endif()
+endmacro()
+```
+
+Which means that, what **this simply does** is to **add** the input variable (`QML_MODULE_IMPORT`) to the variable `QML_IMPORT_PATH` (Qt's Prefix Path).
+
+We can **print** this **variable** to see if there's something we don't like
+
+```
+QML_IMPORT_PATH:
++/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/audio/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/cloud/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/diagnostics/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/midi/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/mpe/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/ui/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/uicomponents/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/uicomponents/api
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/dockwindow/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/shortcuts/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/tours/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/multiinstances/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/learn/qml
+/home/programar/Documents/AE/Advanced-Effects/thirdparty/Muse/framework/extensions/qml
+/home/programar/Documents/AE/Advanced-Effects/src/appshell/qml
+```
+
+We can see that they are **absolute paths**. This doesn't have to be **bad**, because it's what MuseScore already does. But, if these absolute routes are being added to `QML_IMPORT_PATH`, why is this not working?
+
+**AHA MOMENT!** If the problem is that `Muse/UiComponents/qmldir` is inside `qml/`, and for that reason the module isn't being found with the import declaration `import Muse.UiComponents`. That means that **a solution would be to set :/qml as a PREFIX PATH!**
+
+<p color="green" style="font-size:24">✅ SOLVED!</p>
 
 ### How to learn the specifics
 
